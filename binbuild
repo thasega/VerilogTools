@@ -1,0 +1,180 @@
+#!/usr/bin/ruby
+
+#*********************************************************************
+#  Binary file builder
+#
+#        written by Tsuyoshi HASEGAWA
+#*********************************************************************
+
+#-------------------------------
+#  command handler
+#-------------------------------
+def exec_coms( coms )
+
+	if ( coms[0] == "name" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal name command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		if ( $outfile != nil )
+			$outfile.close
+		end
+		$outfile = open( coms[1], "wb" );
+		return
+	end
+
+	if ( coms[0] == "fill" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal fill command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		if ( coms.length >= 3 )
+			fillval = Integer(coms[2])
+		else
+			fillval = 0;
+		end
+		Integer(coms[1]).times {
+			$outfile.putc( fillval )
+		}
+		return
+	end
+
+	if ( coms[0] == "file" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal file command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		file = open( coms[1], "rb" )
+		$outfile.write file.read
+		file.close
+		return
+	end
+
+	if ( coms[0] == "fint" )
+		if ( coms.length < 3 )
+			printf "Error: Illegal file command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		file0 = open( coms[1], "rb" )
+		file1 = open( coms[2], "rb" )
+
+		file0data = file0.read;
+		file1data = file1.read;
+
+		if ( file0data.length >= file1data.length )
+			fsize = file0data.length
+			fsize.times {|i|
+				$outfile.putc(file0data[i])
+				if ( i < file1data.length )
+					$outfile.putc(file1data[i])
+				else
+					$outfile.putc(0);
+				end
+			}
+		else
+			fsize = file1data.length
+			fsize.times {|i|
+				if ( i < file0data.length )
+					$outfile.putc(file0data[i])
+				else
+					$outfile.putc(0);
+				end
+				$outfile.putc(file1data[i])
+			}
+		end
+
+		file1.close
+		file0.close
+		return
+	end
+
+	if ( coms[0] == "offs" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal offs command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		$outfile.seek( Integer(coms[1]), IO::SEEK_SET )
+		return
+	end
+
+	if ( coms[0] == "byte" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal byte command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		(coms.length-1).times {|i|
+			$outfile.putc( Integer(coms[i+1]) )
+		}
+		return
+	end
+
+	if ( coms[0] == "adjs" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal adjs command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		n = Integer( coms[1] )
+		n = n - ( $outfile.pos % n );
+		if ( n > 0 )
+			$outfile.seek( n-1, IO::SEEK_CUR )
+			$outfile.putc( 0 );
+		end
+		return
+	end
+
+	if ( coms[0] == "disp" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal disp command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		printf "  %20s - $%08X\n", coms[1], $outfile.pos
+		return
+	end
+
+	if ( coms[0] == "disp2" )
+		if ( coms.length < 2 )
+			printf "Error: Illegal disp2 command in %d\n", $infile.lineno
+			exit(-1)
+		end
+		printf "  %20s - $%08X\n", coms[1], $outfile.pos/2
+		return
+	end
+
+	if ( coms[0] == "cout" )
+		if ( coms[1] != nil )
+			print coms[1]
+		end
+		print "\n"
+		return
+	end
+
+	printf "Error: Unknown command \"%s\" in %d\n", coms[0], $infile.lineno
+	exit(-1)
+
+end
+
+
+#-------------------------------
+#  main
+#-------------------------------
+def exec
+
+	if ( ARGV[0] == nil )
+		print("Usage: binbuild [infile]\n")
+		return
+	end
+
+	$infile = open( ARGV[0] )
+	while !$infile.eof? do
+		text = $infile.gets.chomp!
+		if ( text.index(/[A-Za-z]./) == 0 )
+			exec_coms( text.split() )
+		end
+	end
+	$infile.close
+	$outfile.close
+
+end
+
+exec
+
